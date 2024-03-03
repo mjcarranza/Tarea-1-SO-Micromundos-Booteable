@@ -7,5 +7,5 @@ $(BUILD_DIR)/bootloader.img: $(BUILD_DIR)/bootloader.bin
 	cp $(BUILD_DIR)/bootloader.bin $(BUILD_DIR)/bootloader.img
 	truncate -s 1440k $(BUILD_DIR)/bootloader.img
 
-$(BUILD_DIR)/bootloader.bin: $(SRC_DIR)/bootloader.nasm
+$(BUILD_DIR)/bootloader.bin: $(SRC_DIR)/bootloader.asm
 	$(ASM) $(SRC_DIR)/bootloader.asm -f bin -o $(BUILD_DIR)/bootloader.bin

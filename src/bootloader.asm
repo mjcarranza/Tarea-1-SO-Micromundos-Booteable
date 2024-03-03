@@ -1,6 +1,5 @@
 ORG 0x7c00 					; memory position for the code
 BITS 16						; 16 bit code
-define SECTOR_AMOUNT 0X4	; software sectors
 jmp short start
 
 start:
