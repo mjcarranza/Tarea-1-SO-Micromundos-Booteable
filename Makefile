@@ -3,9 +3,22 @@ ASM=nasm
 SRC_DIR=src
 BUILD_DIR=build
 
-$(BUILD_DIR)/bootloader.img: $(BUILD_DIR)/bootloader.bin
-	cp $(BUILD_DIR)/bootloader.bin $(BUILD_DIR)/bootloader.img
-	truncate -s 1440k $(BUILD_DIR)/bootloader.img
+BOOTLOADER_SRC=$(SRC_DIR)/bootloader.asm
+micromundos_SRC=$(SRC_DIR)/micromundos.asm
 
-$(BUILD_DIR)/bootloader.bin: $(SRC_DIR)/bootloader.asm
-	$(ASM) $(SRC_DIR)/bootloader.asm -f bin -o $(BUILD_DIR)/bootloader.bin
+BOOTLOADER_BIN=$(BUILD_DIR)/bootloader.bin
+micromundos_BIN=$(BUILD_DIR)/micromundos.bin
+BOOTLOADER_IMG=$(BUILD_DIR)/bootloader.img
+
+$(BOOTLOADER_IMG): $(BOOTLOADER_BIN) $(micromundos_BIN)
+	cat $(BOOTLOADER_BIN) $(micromundos_BIN) > $(BOOTLOADER_IMG)
+	truncate -s 1440k $(BOOTLOADER_IMG)
+
+$(BOOTLOADER_BIN): $(BOOTLOADER_SRC)
+	$(ASM) $(BOOTLOADER_SRC) -f bin -o $(BOOTLOADER_BIN)
+
+$(micromundos_BIN): $(micromundos_SRC)
+	$(ASM) $(micromundos_SRC) -f bin -o $(micromundos_BIN)
+
+clean:
+	rm -rf $(BUILD_DIR)
