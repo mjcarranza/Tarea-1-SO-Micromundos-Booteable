@@ -39,7 +39,7 @@ $(BINARY_IMG): $(BOOTLOADER_IMG)
 
 # ejecutar juego
 run:
-	qemu-system-i386 -fda $(BOOTLOADER_IMG)
+	qemu-system-i386 -hda $(BOOTLOADER_IMG)
 
 # limpiar el directorio build
 clean:

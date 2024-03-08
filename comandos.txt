@@ -1,0 +1,10 @@
+---------------------COMANDO PARA VER LOS DISCOS QUE E TIENEN INSTALADOS O CONECTADOS----------
+sudo fdisk -l
+
+--------------COMANDOS PARA CARGAR EL PROGRAMA A LA USB--------------
+sudo dd if=bootloader.img of=/dev/sda count=2880 bs=512
+
+---------- PARA VERIFICAR QUE SE HA CARGADO BIEN A LA USB -----------
+sudo xxd /dev/sda
+
+/dev/sdb debo cambiarlo por la ruta de mi USB 

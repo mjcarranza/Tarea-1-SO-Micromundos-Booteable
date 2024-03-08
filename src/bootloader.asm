@@ -10,18 +10,25 @@ start:
     mov ds, ax              ; Establece ds en 0
     mov es, ax              ; Establece es en 0
     mov ss, ax              ; Establece el segmento de la pila en 0
-    mov sp, 0x7c00          ; Establece el puntero de la pila
+    mov fs, ax
+    mov gs, ax
+    mov sp, 0x6ef0          ; Establece el puntero de la pila
     sti                     ; Establece el flag de interrupción
 
-    ; Carga la aplicación desde el disquete
-    mov ah, 0x02            ; Función para leer sectores desde el disco
-    mov al, 0x01            ; Número de sectores a leer
-    mov ch, 0x00            ; Número de cilindro
-    mov dh, 0x00            ; Número de cabeza
-    mov cl, 0x02            ; Número de sector donde comienza la aplicación
-    mov bx, 0x7e00          ; Buffer para cargar el sector (ubicación de memoria de la aplicación)
-    mov dl, 0x00            ; Número de unidad (disquete)
-    int 0x13                ; Interrupción BIOS para operaciones de disco
+
+    mov ah, 0               ; se resetea el modo del disco
+    int 0x13                ; interrupcion para usar el disco con el BIOS
+
+    ; leer del disco y escribir en ram
+    mov bx, 0x7e00          ; direccion de memoria para leer
+    mov al, 0x4             ; cantidad de sectores para lectura
+    mov ch, 0               ; cilindro
+    mov dh, 0               ; cabeza
+    mov cl, 2               ; sector
+    mov ah, 2               ; lee desde el disco
+    int 0x13
+    jmp 0x7e00
+    
     jc disk_error           ; Salta si se establece el flag de carry (error)
 
     ; Salta a la aplicación cargada

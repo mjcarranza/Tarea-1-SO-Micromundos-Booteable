@@ -204,3 +204,4 @@ sprite_bitmaps:
 ;; Initial variable values
     db 70           ; PlayerX
     db 93           ; PlayerY
+
