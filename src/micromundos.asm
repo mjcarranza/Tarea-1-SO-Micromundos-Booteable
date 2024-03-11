@@ -1,24 +1,35 @@
 ORG 0x7e00          ; Start address where the bootloader loads programs
 
-;; DEFINED VARIABLES
+;; DEFINED VARIABLES (memory positions)
 sprites      equ 0FA00h
 turtle       equ 0FA00h
+line         equ 0FA04h
+pos_diag     equ 0FA08h
+neg_diag     equ 0FA0Ch
 playerX      equ 0FA24h
 playerY      equ 0FA2Dh
 
 ;; CONSTANTS 
+; screen
 SCREEN_WIDTH        equ 320     ; Width in pixels
 SCREEN_HEIGHT       equ 200     ; Height in pixels
 VIDEO_MEMORY        equ 0A000h
+; for sprites
 SPRITE_HEIGHT       equ 4
 SPRITE_WIDTH        equ 8       ; Width in bits/data pixels
 SPRITE_WIDTH_PIXELS equ 16      ; Width in screen pixels
 
 ; Colors
-TURTLE_COLOR         equ 02h   ; Green
+TURTLE_COLOR         equ 07h   ; Green      ;; for turtle
+HORIZONTAL_TOGGLE    equ 07h   ; gray       ;; for horizontal line
+VERTICAL_TOGGLE      equ 27h   ; red        ;; for vertical line
+POS_DIAG_TOGGLE      equ 0Bh   ; Cyan       ;; for positive diagonal
+NEG_DIAG_TOGGLE      equ 0Eh   ; Yellow     ;; for negative diagonal
+ERASE_TOGGLE         equ 00h   ; black      ;; for erasing toggles
 
 ;; SETUP 
-mov ax, 0013h
+;mov ah, 0x3c          ; Establece el contador inicial en 10
+mov ax, 0013h         ; establece el modo de video VGA 13h
 int 10h
 
 ;; Set up video memory
@@ -38,7 +49,12 @@ game_loop:
     xor ax, ax      ; Clear screen to black first
     xor di, di
     mov cx, SCREEN_WIDTH*SCREEN_HEIGHT
-    rep stosb       
+    rep stosb   
+
+    push 10 ; Fila
+    push 10 ; Columna
+    push msgFun ; Puntero a la cadena
+    call print_info    
 
     ;; Draw player turtle
     mov al, [playerX]
@@ -47,7 +63,9 @@ game_loop:
     mov ah, [playerY]
     xchg ah, al
     mov bl, TURTLE_COLOR
-    call draw_sprite
+    ;call countdown
+    
+    call draw_turtle
 
     get_input:
         ; Enable keyboard interrupt
@@ -66,13 +84,13 @@ game_loop:
         je move_east        ; If so, jump to move_east label
         
         ; Check if a EAQD key was pressed
-        cmp al, 'e'         ; Check if the pressed key is the E key
+        cmp al, 'd'         ; Check if the pressed key is the E key
         je move_south_east  ; If so, jump to move_south_east label
-        cmp al, 'a'         ; Check if the pressed key is the A key
+        cmp al, 'q'         ; Check if the pressed key is the A key
         je move_north_west  ; If so, jump to move_north_west label
-        cmp al, 'q'         ; Check if the pressed key is the Q key
+        cmp al, 'a'         ; Check if the pressed key is the Q key
         je move_south_west  ; If so, jump to move_south_west label
-        cmp al, 'd'         ; Check if the pressed key is the D key
+        cmp al, 'e'         ; Check if the pressed key is the D key
         je move_north_east  ; If so, jump to move_north_east label
         
         ; Check if Z or X key was pressed
@@ -85,32 +103,43 @@ game_loop:
         cmp al, 0x20        ; Check if the pressed key is the Space key
         je toggle_draw      ; If so, jump to toggle_draw label
         cmp al, 0x0D        ; Check if the pressed key is the Enter key
-        je key_enter        ; If so, jump to key_enter label
+        je finish_game        ; If so, jump to key_enter label
+
+        ; decrementar contador de tiempo
+
         
         jmp game_loop
 
         ;Up arrow 
         move_north:
             mov si, playerY
-            sub byte [si], 2   
+            sub byte [si], 2  
+
+            ; llamar funcion para dibujar toggle 
             jmp game_loop
 
         ;Down arrow
         move_south:
             mov si, playerY
-            add byte [si], 2   
+            add byte [si], 2 
+
+            ; llamar funcion para dibujar toggle  
             jmp game_loop
 
         ;Left arrow
         move_west:
             mov si, playerX
             sub byte [si], 2   
+
+            ; llamar funcion para dibujar toggle
             jmp game_loop
 
         ;Right arrow
         move_east:
             mov si, playerX
             add byte [si], 2   
+
+            ; llamar funcion para dibujar toggle
             jmp game_loop
 
         ;Key E
@@ -119,6 +148,8 @@ game_loop:
             add byte [si], 2   
             mov si, playerX
             add byte [si], 2   
+
+            ; llamar funcion para dibujar toggle
             jmp game_loop
 
         ;Key A
@@ -127,6 +158,8 @@ game_loop:
             sub byte [si], 2   
             mov si, playerX
             sub byte [si], 2   
+
+            ; llamar funcion para dibujar toggle
             jmp game_loop
 
         ;Key Q
@@ -135,6 +168,8 @@ game_loop:
             add byte [si], 2   
             mov si, playerX
             sub byte [si], 2   
+
+            ; llamar funcion para dibujar toggle
             jmp game_loop
 
         ;Key D
@@ -143,6 +178,8 @@ game_loop:
             sub byte [si], 2   
             mov si, playerX
             add byte [si], 2   
+
+            ; llamar funcion para dibujar toggle
             jmp game_loop
 
         ;Key Z
@@ -157,11 +194,93 @@ game_loop:
         toggle_draw:
             jmp game_loop
 
-        ;Key Enter
-        key_enter:
-            jmp game_loop
+        ;Key Enter (finish game)
+        finish_game:
+            ; Restaurar el modo de video original
+            mov ax, 0x03 ; Restaurar modo de video original
+            int 0x10
 
-draw_sprite:
+            ; Salir del programa
+            mov ax, 0x4C00 ; Salir del programa
+            int 0x21
+
+
+;; -------------------------------------------------------------------
+;; PRINT GAME INFO
+;; -------------------------------------------------------------------
+
+print_info:
+
+    ; Establecer el tamaño de la letra
+    mov ax, 0x11 ; Establecer el tamaño de la letra
+    mov bh, 0x00 ; Altura del caracter (8x8 píxeles)
+    mov bl, 0x0F ; Anchura del caracter (16 píxeles)
+;    int 0x10
+
+    ; Calcular la posición del cursor
+    mov bx, 10 ; Fila del cursor
+    mov cx, 10 ; Columna del cursor
+    mul cx ; Multiplicar fila por 80
+    add bx, cx ; Sumar columna
+
+    ; Recorrer la cadena caracter por caracter
+    mov si, msgFun ; Puntero al inicio de la cadena
+    mov di, 0 ; Contador de caracteres
+    repne scasb ; Recorrer la cadena hasta encontrar el caracter nulo ('\0')
+
+    ; Imprimir cada caracter de la cadena
+    mov di, 0 ; Contador de caracteres
+    bucle_imprimir:
+    mov al, [msgFun + di] ; Leer caracter de la cadena
+    mov dx, 0x3C4 ; Puerto de datos de video
+    out dx, al ; Escribir caracter en la memoria de video
+    inc di ; Incrementar el contador de caracteres
+    cmp di, msgFun_len ; Comparar el contador con la longitud de la cadena
+    jb bucle_imprimir ; Si el contador es menor que la longitud, continuar el bucle
+
+    ; Retornar al siguiente comando
+    ret
+
+
+
+draw_info:
+    ; Imprime el mensaje del tiempo restante
+    mov eax, 4           ; syscall para sys_write (imprimir)
+    mov ebx, 1           ; descriptor de archivo (stdout)
+    mov ecx, msgFun         ; dirección del mensaje
+    mov edx, msgFun_len     ; longitud del mensaje
+    int 0x80             ; llama al kernel
+    
+    ; Imprime el mensaje
+    mov eax, 4           ; syscall para sys_write (imprimir)
+    mov ebx, 1           ; descriptor de archivo (stdout)
+    mov ecx, msgLvl         ; dirección del mensaje
+    mov edx, msgLvl_len     ; longitud del mensaje
+    int 0x80             ; llama al kernel
+    
+    ; Imprime el mensaje del nivel actual
+    mov eax, 4           ; syscall para sys_write (imprimir)
+    mov ebx, 1           ; descriptor de archivo (stdout)
+    mov ecx, msgTime         ; dirección del mensaje
+    mov edx, msgTime_len     ; longitud del mensaje
+    int 0x80             ; llama al kernel
+    
+    ; Imprime el mensaje
+    mov eax, 4           ; syscall para sys_write (imprimir)
+    mov ebx, 1           ; descriptor de archivo (stdout)
+    mov ecx, msgCommand         ; dirección del mensaje
+    mov edx, msgCommand_len     ; longitud del mensaje
+    int 0x80             ; llama al kernel
+
+    ret
+
+
+
+;; -------------------------------------------------------------------
+;; DRAW TURTLE 
+;; -------------------------------------------------------------------
+
+draw_turtle:
     call get_screen_position    ; Get X/Y position
     mov cl, SPRITE_HEIGHT
     .next_line:
@@ -194,6 +313,7 @@ get_screen_position:
     add di, ax      
 
     ret
+
 ;; CODE SEGMENT DATA =================================
 sprite_bitmaps:
     db 00100000b    ; Tortuga bitmap
@@ -201,7 +321,46 @@ sprite_bitmaps:
     db 11111110b
     db 01010000b
 
+    db 11111111b    ; Horizontal/Vertical Toggle
+    db 11111111b
+    db 11111111b
+    db 11111111b
+
+    ;; estos de abajo talvez sean opcionales
+
+    db 00000111b    ; Diagonal Right Toggle
+    db 00011111b
+    db 11111000b
+    db 11100000b
+
+    db 11100000b    ; Diagonal Left Toggle
+    db 11111000b
+    db 00011111b
+    db 00000111b
+
 ;; Initial variable values
     db 70           ; PlayerX
     db 93           ; PlayerY
 
+
+
+;; ---------------------------------------------------
+;; DATA SECTION
+;; ---------------------------------------------------
+
+section .data
+; impresion de tiempo restante
+msgTime db "Tiempo: ", 0xA ; Mensaje para imprimir
+msgTime_len equ $ - msgTime  ; Longitud del mensaje
+
+;impresion de nivel
+msgLvl db "Nivel: ", 0xA ; Mensaje para imprimir
+msgLvl_len equ $ - msgLvl  ; Longitud del mensaje
+
+; impresion de funcionalidades
+msgFun db "Funacionalidad: ", 0xA ; Mensaje para imprimir
+msgFun_len equ $ - msgFun  ; Longitud del mensaje
+
+; impresion de comandos (como usar)
+msgCommand db "Comandos: ", 0xA ; Mensaje para imprimir
+msgCommand_len equ $ - msgCommand  ; Longitud del mensaje
