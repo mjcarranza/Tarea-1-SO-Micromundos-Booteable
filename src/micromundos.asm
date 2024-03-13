@@ -16,7 +16,7 @@ paint_toggle equ 0FA0Ch
 ; screen
 SCREEN_WIDTH        equ 320     ; Width in pixels
 SCREEN_HEIGHT       equ 200     ; Height in pixels
-VIDEO_MEMORY        equ 0A000h
+VIDEO_MEMORY        equ 0xA000
 ; for sprites
 SPRITE_HEIGHT       equ 4
 SPRITE_WIDTH        equ 8       ; Width in bits/data pixels
@@ -29,11 +29,12 @@ VERTICAL_TOGGLE      equ 27h   ; red        ;; for vertical line
 POS_DIAG_TOGGLE      equ 0Bh   ; Cyan       ;; for positive diagonal
 NEG_DIAG_TOGGLE      equ 0Eh   ; Yellow     ;; for negative diagonal
 ERASE_TOGGLE         equ 00h   ; black      ;; for erasing toggles
+TEXT_COLOR           equ 0Eh   ; white      ;; for printing text
 
 ;; SETUP 
-;mov ah, 0x3c          ; Establece el contador inicial en 10
+mov ah, 0x3c          ; Establece el contador inicial en 10
 mov ax, 0013h         ; establece el modo de video VGA 13h
-int 10h
+int 10h               ; interrupcion invoca servicios de vídeo de la ROM BIOS
 
 ;; Set up video memory
 push VIDEO_MEMORY
@@ -54,6 +55,8 @@ welcome_loop:
     mov cx, SCREEN_WIDTH*SCREEN_HEIGHT
     rep stosb   
 
+    call print_welcome
+
     get_start:
         ; Enable keyboard interrupt
         mov ah, 0x00        
@@ -65,16 +68,61 @@ welcome_loop:
         je game_loop      ; If so, jump to toggle_draw label
         jmp welcome_loop
 
+;; -------------------------------------------------------------------
+;; PRINT GAME INFO
+;; -------------------------------------------------------------------
+
+print_welcome:
+
+  ; Obtener la longitud de la cadena
+  mov ecx, msgTime_len
+
+  ; Si la longitud es cero, no hay nada que imprimir
+  test ecx, ecx
+  jz .fin
+
+  ; Configurar los valores de los registros
+  mov ah, 0x13 ; Función de impresión de caracteres
+  mov bh, 0 ; Página de video (0 para modo texto)
+  mov bl, 0x07 ; Atributo de color (blanco sobre negro)
+  mov dx, msgTime ; Dirección del primer caracter a imprimir
+
+  ; Imprimir la cadena
+  int 0x10
+
+  .fin:
+  ; Retornar al punto de llamada
+  ret
+
+;; IMPRIME EL RASTRO DE LA TORTUGA
+print_rastro:
+    ; Configura el segmento de datos
+    mov ax, 0x0B800 ; Dirección del búfer de video en modo de texto
+    mov es, ax      ; Almacena la dirección en el registro de segmento extra (ES)
+
+    ; Puntero al inicio de la cadena
+    mov si, '.'
+
+    ; Bucle para imprimir cada carácter
+    .print_loop:
+        lodsb          ; Carga el siguiente byte de la cadena en AL
+        test al, al    ; Verifica si es el final de la cadena (byte nulo)
+        jz .done       ; Si es el final, salta al final
+        mov ah, 0x0E   ; Función de impresión en modo de video (INT 10h, AH=0Eh)
+        mov bh, 0      ; Página de video (0 para modo de texto)
+        int 0x10       ; Llama a la interrupción 10h para imprimir el carácter
+        jmp .print_loop ; Siguiente carácter
+
+    .done:
+    ret
+
+
+
 game_loop:
-    xor ax, ax      ; Clear screen to black first
+    xor ax, ax     ; Clear screen to black first ;; xor ax, ax
     xor di, di
     mov cx, SCREEN_WIDTH*SCREEN_HEIGHT
     rep stosb   
-
-    push 10 ; Fila
-    push 10 ; Columna
-    push msgFun ; Puntero a la cadena
-    call print_info    
 
     ;; Draw player turtle
     mov al, [playerX]
@@ -85,13 +133,17 @@ game_loop:
     mov bl, TURTLE_COLOR
     ;call countdown
     
+
     call draw_sprite
+
+    ;call print_info
+
 
     get_input:
         ; Enable keyboard interrupt
         mov ah, 0x00        
-        int 0x16            ; Call keyboard interrupt
-        jc game_loop        
+        int 0x16            ; Call keyboard interrupt. Invoca los servicios estándar del teclado de la ROM BIOS
+        ;jc game_loop        
         
         ; Check if an arrow key was pressed
         cmp ah, 0x48        ; Check if the pressed key is the up arrow
@@ -280,7 +332,8 @@ game_loop:
         ;Key Space
         toggle_draw:
             mov si, paint_toggle
-            xor byte [si], 1  
+            xor byte [si], 1 
+            call print_rastro
             jmp game_loop
 
         ;Key Enter (finish game)
@@ -291,75 +344,11 @@ game_loop:
 
             ; Salir del programa
             mov ax, 0x4C00 ; Salir del programa
-            int 0x21
+            int 0x21 ;Invoca a todos los servicios de llamada a función DOS
 
 
-;; -------------------------------------------------------------------
-;; PRINT GAME INFO
-;; -------------------------------------------------------------------
 
-print_info:
 
-    ; Establecer el tamaño de la letra
-    mov ax, 0x11 ; Establecer el tamaño de la letra
-    mov bh, 0x00 ; Altura del caracter (8x8 píxeles)
-    mov bl, 0x0F ; Anchura del caracter (16 píxeles)
-;    int 0x10
-
-    ; Calcular la posición del cursor
-    mov bx, 10 ; Fila del cursor
-    mov cx, 10 ; Columna del cursor
-    mul cx ; Multiplicar fila por 80
-    add bx, cx ; Sumar columna
-
-    ; Recorrer la cadena caracter por caracter
-    mov si, msgFun ; Puntero al inicio de la cadena
-    mov di, 0 ; Contador de caracteres
-    repne scasb ; Recorrer la cadena hasta encontrar el caracter nulo ('\0')
-
-    ; Imprimir cada caracter de la cadena
-    mov di, 0 ; Contador de caracteres
-    bucle_imprimir:
-    mov al, [msgFun + di] ; Leer caracter de la cadena
-    mov dx, 0x3C4 ; Puerto de datos de video
-    out dx, al ; Escribir caracter en la memoria de video
-    inc di ; Incrementar el contador de caracteres
-    cmp di, msgFun_len ; Comparar el contador con la longitud de la cadena
-    jb bucle_imprimir ; Si el contador es menor que la longitud, continuar el bucle
-
-    ; Retornar al siguiente comando
-    ret
-
-draw_info:
-    ; Imprime el mensaje del tiempo restante
-    mov eax, 4           ; syscall para sys_write (imprimir)
-    mov ebx, 1           ; descriptor de archivo (stdout)
-    mov ecx, msgFun         ; dirección del mensaje
-    mov edx, msgFun_len     ; longitud del mensaje
-    int 0x80             ; llama al kernel
-    
-    ; Imprime el mensaje
-    mov eax, 4           ; syscall para sys_write (imprimir)
-    mov ebx, 1           ; descriptor de archivo (stdout)
-    mov ecx, msgLvl         ; dirección del mensaje
-    mov edx, msgLvl_len     ; longitud del mensaje
-    int 0x80             ; llama al kernel
-    
-    ; Imprime el mensaje del nivel actual
-    mov eax, 4           ; syscall para sys_write (imprimir)
-    mov ebx, 1           ; descriptor de archivo (stdout)
-    mov ecx, msgTime         ; dirección del mensaje
-    mov edx, msgTime_len     ; longitud del mensaje
-    int 0x80             ; llama al kernel
-    
-    ; Imprime el mensaje
-    mov eax, 4           ; syscall para sys_write (imprimir)
-    mov ebx, 1           ; descriptor de archivo (stdout)
-    mov ecx, msgCommand         ; dirección del mensaje
-    mov edx, msgCommand_len     ; longitud del mensaje
-    int 0x80             ; llama al kernel
-
-    ret
 
 ;; -------------------------------------------------------------------
 ;; DRAW SPRITE 
@@ -423,6 +412,13 @@ sprite_bitmaps:
 ;; ---------------------------------------------------
 
 section .data
+; mensaje de bienvenida
+welcome db "Bienvenido a Micromundos Booteable"
+welcome_len equ $ - welcome  ; Longitud del mensaje
+
+;mensaje instruccion para iniciar juego
+start db "Para iniciar, presione la tecla ESPACIO"
+start_len equ $ - start  ; Longitud del mensaje
 
 ; impresion de tiempo restante
 msgTime db "Tiempo: ", 0xA ; Mensaje para imprimir
