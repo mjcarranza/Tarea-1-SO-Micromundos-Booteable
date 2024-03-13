@@ -1,7 +1,7 @@
 ORG 0x7e00          ; Start address where the bootloader loads programs
 
 
-;; DEFINED VARIABLES (memory positions)
+;; Definición de variables
 sprites      equ 0FA00h
 turtle       equ 0FA00h
 h_v_line     equ 0FA04h
@@ -12,24 +12,24 @@ row  	 	 equ 0FA0Bh
 paint_toggle equ 0FA0Ch
 
 
-;; CONSTANTS 
-; screen
-SCREEN_WIDTH        equ 320     ; Width in pixels
-SCREEN_HEIGHT       equ 200     ; Height in pixels
+;; Constantes
+; pantalla
+SCREEN_WIDTH        equ 320     ; Ancho en pixeles
+SCREEN_HEIGHT       equ 200     ; Alto en pixeles
 VIDEO_MEMORY        equ 0xA000
-; for sprites
+; sprites
 SPRITE_HEIGHT       equ 4
-SPRITE_WIDTH        equ 8       ; Width in bits/data pixels
-SPRITE_WIDTH_PIXELS equ 16      ; Width in screen pixels
+SPRITE_WIDTH        equ 8       
+SPRITE_WIDTH_PIXELS equ 16      
 
 ; Colors
-TURTLE_COLOR         equ 02h   ; Green      ;; for turtle
-HORIZONTAL_TOGGLE    equ 07h   ; gray       ;; for horizontal line
-VERTICAL_TOGGLE      equ 27h   ; red        ;; for vertical line
-POS_DIAG_TOGGLE      equ 0Bh   ; Cyan       ;; for positive diagonal
-NEG_DIAG_TOGGLE      equ 0Eh   ; Yellow     ;; for negative diagonal
-ERASE_TOGGLE         equ 00h   ; black      ;; for erasing toggles
-TEXT_COLOR           equ 0Eh   ; white      ;; for printing text
+TURTLE_COLOR         equ 02h   ; Verde      ;; para la tortuga
+HORIZONTAL_TOGGLE    equ 07h   ; gris       ;; para línea horizontal
+VERTICAL_TOGGLE      equ 27h   ; rojo       ;; para línea vertical
+POS_DIAG_TOGGLE      equ 0Bh   ; Cian       ;; para diagonal positiva
+NEG_DIAG_TOGGLE      equ 0Eh   ; Amarillo   ;; para diagonal negativa
+ERASE_TOGGLE         equ 00h   ; negro      ;; para borrar alternancias
+TEXT_COLOR           equ 0Eh   ; blanco     ;; para imprimir texto
 
 ;; SETUP 
 mov ah, 0x3c          ; Establece el contador inicial en 10
@@ -40,7 +40,7 @@ int 10h               ; interrupcion invoca servicios de vídeo de la ROM BIOS
 push VIDEO_MEMORY
 pop es          
 
-;; Move initial sprite data into memory
+;; Move data incial del sprite
 mov di, sprites
 mov si, sprite_bitmaps
 mov cl, 6
@@ -50,7 +50,7 @@ push es
 pop ds
 
 welcome_loop:
-    xor ax, ax      ; Clear screen to black first
+    xor ax, ax      ; Limpia la pantalla a color negro
     xor di, di
     mov cx, SCREEN_WIDTH*SCREEN_HEIGHT
     rep stosb   
@@ -58,18 +58,18 @@ welcome_loop:
     call print_welcome
 
     get_start:
-        ; Enable keyboard interrupt
+        ; Habilita keyboard interrupt
         mov ah, 0x00        
-        int 0x16            ; Call keyboard interrupt
+        int 0x16            ; Llama keyboard interrupt
         jc game_loop        
         
-        ; Check if Space
-        cmp al, 0x20        ; Check if the pressed key is the Space key
-        je game_loop      ; If so, jump to toggle_draw label
+        ; Revisa si se preciona espacio para inciar el juego
+        cmp al, 0x20       
+        je game_loop      ; Salta al game_loop para inciar el juego
         jmp welcome_loop
 
 ;; -------------------------------------------------------------------
-;; PRINT GAME INFO
+;; PRINT INFO JUEGO
 ;; -------------------------------------------------------------------
 
 print_welcome:
@@ -119,20 +119,18 @@ print_rastro:
 
 
 game_loop:
-    xor ax, ax     ; Clear screen to black first ;; xor ax, ax
+    xor ax, ax     ; Limpia la pantalla a color negro
     xor di, di
     mov cx, SCREEN_WIDTH*SCREEN_HEIGHT
     rep stosb   
 
-    ;; Draw player turtle
+    ;; Dibujar tortuga
     mov al, [playerX]
     push si
     mov si, turtle
     mov ah, [playerY]
     xchg ah, al
-    mov bl, TURTLE_COLOR
-    ;call countdown
-    
+    mov bl, TURTLE_COLOR    
 
     call draw_sprite
 
@@ -140,51 +138,50 @@ game_loop:
 
 
     get_input:
-        ; Enable keyboard interrupt
+        ; Habilitar la interrupción del teclado
         mov ah, 0x00        
-        int 0x16            ; Call keyboard interrupt. Invoca los servicios estándar del teclado de la ROM BIOS
+        int 0x16            ; Llama a la interrupción del teclado. Invoca los servicios estándar del teclado de la ROM BIOS
         ;jc game_loop        
         
-        ; Check if an arrow key was pressed
-        cmp ah, 0x48        ; Check if the pressed key is the up arrow
-        je move_north       ; If so, jump to move_north label
-        cmp ah, 0x50        ; Check if the pressed key is the down arrow
-        je move_south       ; If so, jump to move_south label
-        cmp ah, 0x4B        ; Check if the pressed key is the left arrow
-        je move_west        ; If so, jump to move_west label
-        cmp ah, 0x4D        ; Check if the pressed key is the right arrow
-        je move_east        ; If so, jump to move_east label
+        ; Comprobar si se presionó una tecla de flecha
+        cmp ah, 0x48        ; Comprobar si la tecla presionada es la flecha hacia arriba
+        je move_north       ; Si es así, salta a la etiqueta move_north
+        cmp ah, 0x50        ; Comprobar si la tecla presionada es la flecha hacia abajo
+        je move_south       ; Si es así, salta a la etiqueta move_south
+        cmp ah, 0x4B        ; Comprobar si la tecla presionada es la flecha hacia la izquierda
+        je move_west        ; Si es así, salta a la etiqueta move_west
+        cmp ah, 0x4D        ; Comprobar si la tecla presionada es la flecha hacia la derecha
+        je move_east        ; Si es así, salta a la etiqueta move_east
         
-        ; Check if a EAQD key was pressed
-        cmp al, 'd'         ; Check if the pressed key is the E key
-        je move_south_east  ; If so, jump to move_south_east label
-        cmp al, 'q'         ; Check if the pressed key is the A key
-        je move_north_west  ; If so, jump to move_north_west label
-        cmp al, 'a'         ; Check if the pressed key is the Q key
-        je move_south_west  ; If so, jump to move_south_west label
-        cmp al, 'e'         ; Check if the pressed key is the D key
-        je move_north_east  ; If so, jump to move_north_east label
+        ; Comprobar si se presionó una tecla EAQD
+        cmp al, 'd'         ; Comprobar si la tecla presionada es la tecla E
+        je move_south_east  ; Si es así, salta a la etiqueta move_south_east
+        cmp al, 'q'         ; Comprobar si la tecla presionada es la tecla A
+        je move_north_west  ; Si es así, salta a la etiqueta move_north_west
+        cmp al, 'a'         ; Comprobar si la tecla presionada es la tecla Q
+        je move_south_west  ; Si es así, salta a la etiqueta move_south_west
+        cmp al, 'e'         ; Comprobar si la tecla presionada es la tecla D
+        je move_north_east  ; Si es así, salta a la etiqueta move_north_east
         
-        ; Check if Z or X key was pressed
-        cmp al, 'z'         ; Check if the pressed key is the Z key
-        je toggle_erase     ; If so, jump to toggle_erase label
-        cmp al, 'x'         ; Check if the pressed key is the X key
-        je restart          ; If so, jump to restart label
+        ; Comprobar si se presionó la tecla Z o X
+        cmp al, 'z'         ; Comprobar si la tecla presionada es la tecla Z
+        je toggle_erase     ; Si es así, salta a la etiqueta toggle_erase
+        cmp al, 'x'         ; Comprobar si la tecla presionada es la tecla X
+        je restart          ; Si es así, salta a la etiqueta restart
         
-        ; Check if Space or Enter key was pressed
-        cmp al, 0x20        ; Check if the pressed key is the Space key
-        je toggle_draw      ; If so, jump to toggle_draw label
-        cmp al, 0x0D        ; Check if the pressed key is the Enter key
-        je finish_game        ; If so, jump to key_enter label
-
+        ; Comprobar si se presionó la tecla Espacio o Enter
+        cmp al, 0x20        ; Comprobar si la tecla presionada es la tecla Espacio
+        je toggle_draw      ; Si es así, salta a la etiqueta toggle_draw
+        cmp al, 0x0D        ; Comprobar si la tecla presionada es la tecla Enter
+        je finish_game        ; Si es así, salta a la etiqueta key_enter
         ; decrementar contador de tiempo
 
         jmp game_loop
 
-        ;Up arrow 
+        ;Flecha arriba 
         move_north:
             mov si, row
-            cmp byte [si], 0
+            cmp byte [si], 0 ;Valida que no se salga de los limites
             je game_loop
             sub byte [si], 1
             mov si, playerY
@@ -193,10 +190,10 @@ game_loop:
             ; llamar funcion para dibujar toggle 
             jmp game_loop
 
-        ;Down arrow
+        ;Flecha abajo
         move_south:
             mov si, row
-            cmp byte [si], 24
+            cmp byte [si], 24 ;Valida que no se salga de los limites
             je game_loop
             add byte [si], 1
             mov si, playerY
@@ -205,10 +202,10 @@ game_loop:
             ; llamar funcion para dibujar toggle  
             jmp game_loop
 
-        ;Left arrow
+        ;Flecha izquierda
         move_west:
             mov si, col
-            cmp byte [si], 0
+            cmp byte [si], 0 ;Valida que no se salga de los limites
             je game_loop
             sub byte [si], 1
             mov si, playerX
@@ -217,10 +214,10 @@ game_loop:
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
-        ;Right arrow
+        ;Flecha derecha
         move_east:
             mov si, col
-            cmp byte [si], 14
+            cmp byte [si], 14 ;Valida que no se salga de los limites
             je game_loop
             add byte [si], 1
             mov si, playerX
@@ -229,19 +226,18 @@ game_loop:
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
-        ;Key D
+        ;tecla D
         move_south_east:
             mov si, col
-            cmp byte [si], 14
+            cmp byte [si], 14 ;Valida que no se salga de los limites
             je game_loop
 
             mov si, row
-            cmp byte [si], 24
+            cmp byte [si], 24 ;Valida que no se salga de los limites
             je game_loop
 
             add byte [si], 1
             mov si, col
-            cmp byte [si], 14
             add byte [si], 1
 
             mov si, playerY
@@ -252,19 +248,18 @@ game_loop:
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
-        ;Key Q
+        ;tecla Q
         move_north_west:
             mov si, col
-            cmp byte [si], 0
+            cmp byte [si], 0 ;Valida que no se salga de los limites
             je game_loop
 
             mov si, row
-            cmp byte [si], 0
+            cmp byte [si], 0 ;Valida que no se salga de los limites
             je game_loop
 
             sub byte [si], 1
             mov si, col
-            cmp byte [si], 14
             sub byte [si], 1
 
             mov si, playerY
@@ -275,19 +270,18 @@ game_loop:
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
-        ;Key A
+        ;tecla A
         move_south_west:
             mov si, col
-            cmp byte [si], 0
+            cmp byte [si], 0 ;Valida que no se salga de los limites
             je game_loop
 
             mov si, row
-            cmp byte [si], 24
+            cmp byte [si], 24 ;Valida que no se salga de los limites
             je game_loop
 
             add byte [si], 1
             mov si, col
-            cmp byte [si], 14
             sub byte [si], 1
 
             mov si, playerY
@@ -298,19 +292,18 @@ game_loop:
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
-        ;Key E
+        ;tecla E
         move_north_east:
             mov si, col
-            cmp byte [si], 14
+            cmp byte [si], 14 ;Valida que no se salga de los limites
             je game_loop
 
             mov si, row
-            cmp byte [si], 0
+            cmp byte [si], 0 ;Valida que no se salga de los limites
             je game_loop
 
             sub byte [si], 1
             mov si, col
-            cmp byte [si], 14
             add byte [si], 1
 
             mov si, playerY
@@ -321,22 +314,22 @@ game_loop:
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
-        ;Key Z
+        ;tecla Z
         toggle_erase:
             jmp game_loop
 
-        ;Key X
+        ;tecla X
         restart:
             jmp game_loop
 
-        ;Key Space
+        ;tecla Space
         toggle_draw:
             mov si, paint_toggle
             xor byte [si], 1 
             call print_rastro
             jmp game_loop
 
-        ;Key Enter (finish game)
+        ;tecla Enter (finish game)
         finish_game:
             ; Restaurar el modo de video original
             mov ax, 0x03 ; Restaurar modo de video original
@@ -351,17 +344,17 @@ game_loop:
 
 
 ;; -------------------------------------------------------------------
-;; DRAW SPRITE 
+;; DIBUJAR SPRITE 
 ;; -------------------------------------------------------------------
 
 draw_sprite:
-    call get_screen_position    ; Get X/Y position
+    call get_screen_position    ; Obtiene X y Y
     mov cl, SPRITE_HEIGHT
     .next_line:
         push cx
         lodsb                   
-        xchg ax, dx             ; save off sprite data
-        mov cl, SPRITE_WIDTH    ; amount of pixels to draw in sprite
+        xchg ax, dx             
+        mov cl, SPRITE_WIDTH    ; cantidad de pixeles para el sprite
         .next_pixel:
             xor ax, ax          
             dec cx
@@ -379,16 +372,16 @@ draw_sprite:
     ret
 
 get_screen_position:
-    mov dx, ax      ; Save Y/X values
-    cbw             ; Convert byte to word
+    mov dx, ax      ; Guarda valores de Y/X 
+    cbw             
     imul di, ax, SCREEN_WIDTH*2  
-    mov al, dh      ; AX = X value
-    shl ax, 1       ; X value * 2
+    mov al, dh      
+    shl ax, 1      
     add di, ax      
 
     ret
 
-;; CODE SEGMENT DATA =================================
+;; DATA =================================
 sprite_bitmaps:
     db 00100000b    ; Tortuga bitmap
     db 01110110b
