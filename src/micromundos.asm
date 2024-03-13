@@ -48,6 +48,23 @@ rep movsw
 push es
 pop ds
 
+welcome_loop:
+    xor ax, ax      ; Clear screen to black first
+    xor di, di
+    mov cx, SCREEN_WIDTH*SCREEN_HEIGHT
+    rep stosb   
+
+    get_start:
+        ; Enable keyboard interrupt
+        mov ah, 0x00        
+        int 0x16            ; Call keyboard interrupt
+        jc game_loop        
+        
+        ; Check if Space
+        cmp al, 0x20        ; Check if the pressed key is the Space key
+        je game_loop      ; If so, jump to toggle_draw label
+        jmp welcome_loop
+
 game_loop:
     xor ax, ax      ; Clear screen to black first
     xor di, di
@@ -110,7 +127,6 @@ game_loop:
 
         ; decrementar contador de tiempo
 
-        
         jmp game_loop
 
         ;Up arrow 
@@ -161,8 +177,21 @@ game_loop:
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
-        ;Key E
+        ;Key D
         move_south_east:
+            mov si, col
+            cmp byte [si], 14
+            je game_loop
+
+            mov si, row
+            cmp byte [si], 24
+            je game_loop
+
+            add byte [si], 1
+            mov si, col
+            cmp byte [si], 14
+            add byte [si], 1
+
             mov si, playerY
             add byte [si], 4   
             mov si, playerX
@@ -171,8 +200,21 @@ game_loop:
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
-        ;Key A
+        ;Key Q
         move_north_west:
+            mov si, col
+            cmp byte [si], 0
+            je game_loop
+
+            mov si, row
+            cmp byte [si], 0
+            je game_loop
+
+            sub byte [si], 1
+            mov si, col
+            cmp byte [si], 14
+            sub byte [si], 1
+
             mov si, playerY
             sub byte [si], 4   
             mov si, playerX
@@ -181,8 +223,21 @@ game_loop:
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
-        ;Key Q
+        ;Key A
         move_south_west:
+            mov si, col
+            cmp byte [si], 0
+            je game_loop
+
+            mov si, row
+            cmp byte [si], 24
+            je game_loop
+
+            add byte [si], 1
+            mov si, col
+            cmp byte [si], 14
+            sub byte [si], 1
+
             mov si, playerY
             add byte [si], 4   
             mov si, playerX
@@ -191,8 +246,21 @@ game_loop:
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
-        ;Key D
+        ;Key E
         move_north_east:
+            mov si, col
+            cmp byte [si], 14
+            je game_loop
+
+            mov si, row
+            cmp byte [si], 0
+            je game_loop
+
+            sub byte [si], 1
+            mov si, col
+            cmp byte [si], 14
+            add byte [si], 1
+
             mov si, playerY
             sub byte [si], 4   
             mov si, playerX
@@ -355,7 +423,6 @@ sprite_bitmaps:
 ;; ---------------------------------------------------
 
 section .data
-game_area dw 35*50 dup (0)  ; Definir una matriz de 40x50 con celdas inicialmente vacías
 
 ; impresion de tiempo restante
 msgTime db "Tiempo: ", 0xA ; Mensaje para imprimir
