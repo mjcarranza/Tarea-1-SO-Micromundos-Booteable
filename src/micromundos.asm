@@ -1,13 +1,16 @@
 ORG 0x7e00          ; Start address where the bootloader loads programs
 
+
 ;; DEFINED VARIABLES (memory positions)
 sprites      equ 0FA00h
 turtle       equ 0FA00h
-line         equ 0FA04h
-pos_diag     equ 0FA08h
-neg_diag     equ 0FA0Ch
-playerX      equ 0FA24h
-playerY      equ 0FA2Dh
+h_v_line     equ 0FA04h
+playerX      equ 0FA08h
+playerY      equ 0FA09h
+col          equ 0FA0Ah
+row  	 	 equ 0FA0Bh
+paint_toggle equ 0FA0Ch
+
 
 ;; CONSTANTS 
 ; screen
@@ -20,7 +23,7 @@ SPRITE_WIDTH        equ 8       ; Width in bits/data pixels
 SPRITE_WIDTH_PIXELS equ 16      ; Width in screen pixels
 
 ; Colors
-TURTLE_COLOR         equ 07h   ; Green      ;; for turtle
+TURTLE_COLOR         equ 02h   ; Green      ;; for turtle
 HORIZONTAL_TOGGLE    equ 07h   ; gray       ;; for horizontal line
 VERTICAL_TOGGLE      equ 27h   ; red        ;; for vertical line
 POS_DIAG_TOGGLE      equ 0Bh   ; Cyan       ;; for positive diagonal
@@ -65,7 +68,7 @@ game_loop:
     mov bl, TURTLE_COLOR
     ;call countdown
     
-    call draw_turtle
+    call draw_sprite
 
     get_input:
         ; Enable keyboard interrupt
@@ -112,32 +115,48 @@ game_loop:
 
         ;Up arrow 
         move_north:
+            mov si, row
+            cmp byte [si], 0
+            je game_loop
+            sub byte [si], 1
             mov si, playerY
-            sub byte [si], 2  
+            sub byte [si], 4  
 
             ; llamar funcion para dibujar toggle 
             jmp game_loop
 
         ;Down arrow
         move_south:
+            mov si, row
+            cmp byte [si], 24
+            je game_loop
+            add byte [si], 1
             mov si, playerY
-            add byte [si], 2 
+            add byte [si], 4 
 
             ; llamar funcion para dibujar toggle  
             jmp game_loop
 
         ;Left arrow
         move_west:
+            mov si, col
+            cmp byte [si], 0
+            je game_loop
+            sub byte [si], 1
             mov si, playerX
-            sub byte [si], 2   
+            sub byte [si], 8   
 
             ; llamar funcion para dibujar toggle
             jmp game_loop
 
         ;Right arrow
         move_east:
+            mov si, col
+            cmp byte [si], 14
+            je game_loop
+            add byte [si], 1
             mov si, playerX
-            add byte [si], 2   
+            add byte [si], 8   
 
             ; llamar funcion para dibujar toggle
             jmp game_loop
@@ -145,9 +164,9 @@ game_loop:
         ;Key E
         move_south_east:
             mov si, playerY
-            add byte [si], 2   
+            add byte [si], 4   
             mov si, playerX
-            add byte [si], 2   
+            add byte [si], 8   
 
             ; llamar funcion para dibujar toggle
             jmp game_loop
@@ -155,9 +174,9 @@ game_loop:
         ;Key A
         move_north_west:
             mov si, playerY
-            sub byte [si], 2   
+            sub byte [si], 4   
             mov si, playerX
-            sub byte [si], 2   
+            sub byte [si], 8   
 
             ; llamar funcion para dibujar toggle
             jmp game_loop
@@ -165,9 +184,9 @@ game_loop:
         ;Key Q
         move_south_west:
             mov si, playerY
-            add byte [si], 2   
+            add byte [si], 4   
             mov si, playerX
-            sub byte [si], 2   
+            sub byte [si], 8   
 
             ; llamar funcion para dibujar toggle
             jmp game_loop
@@ -175,9 +194,9 @@ game_loop:
         ;Key D
         move_north_east:
             mov si, playerY
-            sub byte [si], 2   
+            sub byte [si], 4   
             mov si, playerX
-            add byte [si], 2   
+            add byte [si], 8   
 
             ; llamar funcion para dibujar toggle
             jmp game_loop
@@ -192,6 +211,8 @@ game_loop:
 
         ;Key Space
         toggle_draw:
+            mov si, paint_toggle
+            xor byte [si], 1  
             jmp game_loop
 
         ;Key Enter (finish game)
@@ -241,8 +262,6 @@ print_info:
     ; Retornar al siguiente comando
     ret
 
-
-
 draw_info:
     ; Imprime el mensaje del tiempo restante
     mov eax, 4           ; syscall para sys_write (imprimir)
@@ -274,13 +293,11 @@ draw_info:
 
     ret
 
-
-
 ;; -------------------------------------------------------------------
-;; DRAW TURTLE 
+;; DRAW SPRITE 
 ;; -------------------------------------------------------------------
 
-draw_turtle:
+draw_sprite:
     call get_screen_position    ; Get X/Y position
     mov cl, SPRITE_HEIGHT
     .next_line:
@@ -326,29 +343,20 @@ sprite_bitmaps:
     db 11111111b
     db 11111111b
 
-    ;; estos de abajo talvez sean opcionales
+    db 40           ;PlayerX
+    db 0            ;PlayerY
+    db 0            ;Col
+    db 0            ;Row
 
-    db 00000111b    ; Diagonal Right Toggle
-    db 00011111b
-    db 11111000b
-    db 11100000b
-
-    db 11100000b    ; Diagonal Left Toggle
-    db 11111000b
-    db 00011111b
-    db 00000111b
-
-;; Initial variable values
-    db 70           ; PlayerX
-    db 93           ; PlayerY
-
-
+    db 0            ;Paint
 
 ;; ---------------------------------------------------
 ;; DATA SECTION
 ;; ---------------------------------------------------
 
 section .data
+game_area dw 35*50 dup (0)  ; Definir una matriz de 40x50 con celdas inicialmente vacías
+
 ; impresion de tiempo restante
 msgTime db "Tiempo: ", 0xA ; Mensaje para imprimir
 msgTime_len equ $ - msgTime  ; Longitud del mensaje
